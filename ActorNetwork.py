@@ -50,7 +50,7 @@ class ActorNetwork(object):
         h1 = Dense(HIDDEN2_UNITS, activation='relu')(h0)
         Bending = Dense(1, activation='tanh')(h1)
         Rotating = Dense(1, activation='tanh')(h1)
-        Turning = Dense(1, activation='tanh')(h1) 
-        V = Concatenate()([Bending, Rotating, Turning])
+        #Turning = Dense(1, activation='tanh')(h1) 
+        V = Concatenate()([Bending, Rotating])
         model = Model(inputs=S, outputs=V)
         return model, model.trainable_weights, S
