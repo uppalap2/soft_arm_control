@@ -1,5 +1,5 @@
+
 #from gym_torcs import TorcsEnv
-import matlab.engine
 import numpy as np
 from numpy.linalg import norm
 import random
@@ -18,6 +18,7 @@ from CriticNetwork import CriticNetwork
 from OU import OU
 from matplotlib import pyplot as plt
 import sys
+import matlab.engine
 from collections import deque
 
 eng = matlab.engine.start_matlab() #Initialize MATLAB engine
@@ -32,23 +33,24 @@ def plot_data(data):
     plt.plot(data)
     plt.show()
 
-###################CRAP!!!!!
-#def getPos(data_dict):
-#    Pb = round(float(np.random.uniform(11, 40)))#float(round(float(np.random.uniform(11, 40))))
-#    Pr = float(1 * round(float(np.random.uniform(-44, 44)) / 1.0))
-#    theta = float(3 * round(float(np.random.uniform(-60, 60)) / 3.0))  # 120 deg sweep for turning......(-90,90)
-#    point = data_dict[(float(Pb), float(Pr), float(theta))]
-#    point = np.round(np.asarray(point), 2)
-#    point = np.reshape(point, [1, 3])
-#    print("New training Point: {}, Pressure: {}".format(point[0], [Pb, Pr, theta]))
-#    return point[0], Pb, Pr, theta
+
+def getPos(data_dict,L):
+    Pb = round(np.random.uniform(11,40))
+    Pr = round(np.random.uniform(-44,44))
+    #theta = float(10 * round(float(np.random.uniform(-9, 9)) ))  # 120 deg sweep for turning
+    point = data_dict[(float(Pb), float(Pr),L)]
+    point = np.round(np.asarray(point), 2)
+    point = np.reshape(point, [1, 3])
+   # point.shape
+    print("New training Point: {}, Pressure: {}".format(point[0], [Pb, Pr]))
+    return point[0], Pb, Pr#,theta
 
 
-def updateState(state, target, a, Pb, Pr, th):#updateState(state, target, data_dict, a, Pb, Pr, th):
+def updateState(state, target, data_dict, a, Pb, Pr,L):#, th):
     pressure_flag = 0
-    Pb_new = np.round(Pb + a[0], 1)
-    Pr_new = np.round(Pr + a[1], 1)
-    th_new = np.round(th + a[2])
+    Pb_new = np.round( Pb + a[0], 1)#np.round(Pb + a[0], 1)
+    Pr_new = np.round( Pr + a[1], 1)#np.round(Pr + a[1], 1)
+   # th_new = np.round( th + a[2])#np.round(th + a[2])
 
     if (Pb_new) > 40:  # Bending
         Pb_new = 40
@@ -62,30 +64,27 @@ def updateState(state, target, a, Pb, Pr, th):#updateState(state, target, data_d
     if (Pr_new) < -44:
         Pr_new = -44
         pressure_flag = 1
-    if (th_new) < -90:
-        th_new = -90
-        pressure_flag = 1
-    if (th_new) > 90:
-        th_new = 90
-        pressure_flag = 1
+   # if (th_new) < -60:
+       # th_new = -60
+       # pressure_flag = 1
+    #if (th_new) > 60:
+        #th_new = 60
+        #pressure_flag = 1
 
-    new_point = eng.forward_kin(float(Pb_new), float(Pr_new), float(th_new),state[0].item())#24e-2#state[0].item() # output is in cm for pos
-#    print("The value is {}".format(state[0]))
+    new_point = eng.forward_kin(float(Pb_new), float(Pr_new),float(0),float(L))#, float(th_new),26e-2)
     new_point = np.round(np.asarray(new_point), 2)
-    new_point = np.reshape(new_point, [1, 6])
-#    print("New_point_old",new_point)
-    new_point=np.insert(new_point,0,state[0])
-#    print("New_point",new_point)
-    new_state = new_point - target#new_point[0] - target
-    new_state[0]=state[0]
-    return new_state, Pb_new, Pr_new, th_new, pressure_flag
-
+    new_point = np.reshape(new_point, [1, 3])
+    new_state = new_point[0] - target
+    #print("new pressures:{}".format([Pb_new, Pr_new, th_new,pressure_flag]))
+    #return new_state, Pb_new, Pr_new, th_new, pressure_flag
+    return new_state, Pb_new, Pr_new, pressure_flag
 
 def scaleActions(a_t):
     scaled_actions = np.zeros((1, 3))
-    scaled_actions[0][0] = 1.0 * (-11 + 29 * (a_t[0][0] + 1) / 2.0)  
+    scaled_actions[0][0] = 1.0 * (-11 + 29 * (a_t[0][0] + 1) / 2.0)  #1.0 * (-9 + 18 * (a_t[0][0] + 1) / 2.0) 
     scaled_actions[0][1] = 1.0 * (-44 + 88 * (a_t[0][1] + 1) / 2.0)
-    scaled_actions[0][2] = 1.0 * (-90 + 180 * (a_t[0][2] + 1) / 2.0)
+    #scaled_actions[0][2] = 1.0 * (-60 + 120 * (a_t[0][2] + 1) / 2.0)
+    #print("Scaled actions:{}".format(scaled_actions[0][0:3]))
     return scaled_actions
 
 
@@ -93,8 +92,8 @@ def calculateReward(target, state, state_new, PF, step):
     done = False
     reached = False
     reward = -1.0  
-    err_prev = norm(state[1:4])#3
-    err_curr = norm(state_new[1:4])#3
+    err_prev = norm(state)
+    err_curr = norm(state_new)
     reward += -2+(err_prev - err_curr)
     if PF:
         reward -= -2 + err_curr  # penalized by how far the crash occurs from target
@@ -104,7 +103,7 @@ def calculateReward(target, state, state_new, PF, step):
         reward -= -2 + err_curr
         done = True
 
-    if err_curr < 1:#1.0
+    if err_curr < 1.0:
         done = True
         reached = True
         reward += 100
@@ -121,29 +120,25 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
     LRA = 0.00002  # Learning rate for Actor
     LRC = 0.0001  # Learning rate for Critic
 
-    action_dim = 3  # Bending/Rotating/Turning
-    state_dim = 10  # of sensors input
+    action_dim = 2  # Bending/Rotating/Turning
+    state_dim = 5  # of sensors input
 
     #    np.random.seed(1337)
 
     EXPLORE = 100000  # exploration step count
-    episode_count = 50000*2
+    episode_count = 100000
     rewards = 0
     done = False
     step = 0
-    epsilon = 0.9 # Annealed to 0.1
+    epsilon = 0.9 # Annealed to 0.1# was 0.9
     train_indicator = 1
 
-    contents = sio.loadmat('dataVaryL_cm.mat')#TRO_control_data.mat#data_rot.mat
-    data = contents['dataVaryL_cm']#data_rot # in cm
-#    print(type(data))
-#    print(data.shape)
-    data_sane=data
+    contents = sio.loadmat('P2_data_15cm.mat')
+    data = contents['P2_data_15cm']
     data = tuple(map(tuple, data))
-#    print(len(data))
     data_dict = {}
     for i in data:
-        data_dict[i[0:3]] = i[3:6]#data_dict[i[0:3]] = i[3:6]
+        data_dict[i[0:3]] = i[3:6]
 
     sess = tf.Session()
     from keras import backend as K #Keras with tf backend
@@ -157,43 +152,19 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
     reached = False
     reached_count = 0
     rpe = []
-    reached_deq = deque(max_len=100)
+    reached_deq = deque(maxlen=100)
+    L = 15e-2;
     for i in range(episode_count):
 
         print("Episode : " + str(i) + " Replay Buffer " + str(buff.count()))
 
         step = 1
-#        print(i)
 
-        idx=np.random.choice(data_sane.shape[0],size=2, replace=False)
-                
-        two_states = data_sane[idx,:]
-        while two_states[0,3]!=two_states[1,3]:
-            idx=np.random.choice(data_sane.shape[0],size=2, replace=False)
-            two_states = data_sane[idx,:]
-         
-#        two_states = data_sane[idx,:]
-#        print(two_states)
-            
+        start, Pb, Pr = getPos(data_dict,L)
+        target, Pb_t, Pr_t = getPos(data_dict,L)
+        state = start - target
+        s_t = np.hstack((state[0], state[1], state[2], Pb, Pr))
 
-        start_new = two_states[0]
-        target_new = two_states[1]
-        target=target_new[3:]#[3:9]
-        state_pres = start_new-target_new
-        state_pres[3]=two_states[0,3]
-#        print(state_new)
-        s_t_new = np.append(state_pres[3:],start_new[0:3])
-#        print(s_t_new)
-        s_t=s_t_new.T
-#        print("Da Fuck! {}".format(s_t))
-
-
-###### CRAP 
-#        start, Pb, Pr, theta = getPos(data_dict)
-#        target, Pb_t, Pr_t, tt_t = getPos(data_dict)
-#        state = start - target
-#        s_t = np.hstack((state[0], state[1], state[2], Pb, Pr, theta))
-####
         done = False
         total_reward = 0.0
 
@@ -207,28 +178,25 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
             a_t_original = actor.model.predict(s_t.reshape(1, s_t.shape[0]))
             noise_t[0][0] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][0], 0.0, 0.50, 0.2)
             noise_t[0][1] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][1], 0.0, 0.50, 0.2)
-            noise_t[0][2] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][2], 0.0, 0.50, 0.2)
+            #noise_t[0][2] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][2], 0.0, 0.50, 0.2)
 
             a_t[0][0] = a_t_original[0][0] + noise_t[0][0]
             a_t[0][1] = a_t_original[0][1] + noise_t[0][1]
-            a_t[0][2] = a_t_original[0][2] + noise_t[0][2]
+            #a_t[0][2] = a_t_original[0][2] + noise_t[0][2]
 
             scaled_a = scaleActions(a_t)
-
-            state_new, Pb_new, Pr_new, th_new, pressure_flag = updateState(s_t[0:7], target, scaled_a[0],
-                                                                           s_t[7], s_t[8], s_t[9])#updateState(s_t[0:3], target, data_dict, scaled_a[0],
-                                                                           #s_t[3], s_t[4], s_t[5])
+           
+            state_new, Pb_new, Pr_new, pressure_flag = updateState(s_t[0:3], target, data_dict, scaled_a[0],
+                                                                           s_t[3], s_t[4], L)
+            
 
             step += 1
 
-            r_t, done, reached, err_curr = calculateReward(target, state_pres, state_new, pressure_flag, step)
-            temp=np.asarray([Pb_new, Pr_new, th_new])
-            s_t1=np.append(state_new,temp)
-#            s_t1 = np.hstack((state_new[0], state_new[1], state_new[2], Pb_new, Pr_new, th_new))
+            r_t, done, reached, err_curr = calculateReward(target, state, state_new, pressure_flag, step)
+            s_t1 = np.hstack((state_new[0], state_new[1], state_new[2], Pb_new, Pr_new))
 
             if reached:
                 reached_count += 1
-            reached_deq.append(reached)
             buff.add(s_t, a_t[0], r_t, s_t1, done)  # Add replay buffer
 
             # Do the batch update
@@ -258,22 +226,22 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
             total_reward += r_t
             s_t = s_t1
             state = state_new
-
+        reached_deq.append(reached)
         if np.mod(i, 3) == 0:
             if (train_indicator):
-                actor.model.save_weights("actormodel.h5", overwrite=True)
-                with open("actormodel.json", "w") as outfile:
+                actor.model.save_weights("actormodel15.h5", overwrite=True)
+                with open("actormodel15.json", "w") as outfile:
                     json.dump(actor.model.to_json(), outfile)
 
-                critic.model.save_weights("criticmodel.h5", overwrite=True)
-                with open("criticmodel.json", "w") as outfile:
+                critic.model.save_weights("criticmodel15.h5", overwrite=True)
+                with open("criticmodel15.json", "w") as outfile:
                     json.dump(critic.model.to_json(), outfile)
 
         rpe.append(total_reward)
-        sio.savemat('Rewards_per_epsiode', {'R': rpe})
-#        print(start_new)#Pb, Pr, theta
-#        print(target_new)#Pb_t, Pr_t, tt_t
-#        print(s_t1)
+        sio.savemat('Rewards_per_episode15', {'R': rpe})
+        print(Pb, Pr)
+        print(Pb_t, Pr_t)
+        print(s_t1)
         print("Noise", np.round(noise_t, 2))
         print("Err", err_curr, "Reward ", total_reward, "Epsilon", epsilon)
         print("Total Step: " + str(step), "last 100 reached", np.sum(reached_deq))

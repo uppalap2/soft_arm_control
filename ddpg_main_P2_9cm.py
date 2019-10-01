@@ -19,6 +19,7 @@ from OU import OU
 from matplotlib import pyplot as plt
 import sys
 import matlab.engine
+from collections import deque
 
 eng = matlab.engine.start_matlab() #Initialize MATLAB engine
 
@@ -151,6 +152,7 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
     reached = False
     reached_count = 0
     rpe = []
+    reached_deq = deque(maxlen=100)
     L = 9e-2;
     for i in range(episode_count):
 
@@ -195,7 +197,6 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
 
             if reached:
                 reached_count += 1
-
             buff.add(s_t, a_t[0], r_t, s_t1, done)  # Add replay buffer
 
             # Do the batch update
@@ -225,7 +226,7 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
             total_reward += r_t
             s_t = s_t1
             state = state_new
-
+        reached_deq.append(reached)
         if np.mod(i, 3) == 0:
             if (train_indicator):
                 actor.model.save_weights("actormodel.h5", overwrite=True)
@@ -237,13 +238,13 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
                     json.dump(critic.model.to_json(), outfile)
 
         rpe.append(total_reward)
-        sio.savemat('Rewards_per_epsiode', {'R': rpe})
+        sio.savemat('Rewards_per_episode', {'R': rpe})
         print(Pb, Pr)
         print(Pb_t, Pr_t)
         print(s_t1)
         print("Noise", np.round(noise_t, 2))
         print("Err", err_curr, "Reward ", total_reward, "Epsilon", epsilon)
-        print("Total Step: " + str(step), "Reached", reached_count)
+        print("Total Step: " + str(step), "last 100 reached", np.sum(reached_deq))
         print("")
 
 
