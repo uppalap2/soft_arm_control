@@ -229,16 +229,16 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
         reached_deq.append(reached)
         if np.mod(i, 3) == 0:
             if (train_indicator):
-                actor.model.save_weights("actormodel20.h5", overwrite=True)
-                with open("actormodel20.json", "w") as outfile:
+                actor.model.save_weights("P2_20cm/actormodel20.h5", overwrite=True)
+                with open("P2_20cm/actormodel20.json", "w") as outfile:
                     json.dump(actor.model.to_json(), outfile)
 
-                critic.model.save_weights("criticmodel20.h5", overwrite=True)
-                with open("criticmodel20.json", "w") as outfile:
+                critic.model.save_weights("P2_20cm/criticmodel20.h5", overwrite=True)
+                with open("P2_20cm/criticmodel20.json", "w") as outfile:
                     json.dump(critic.model.to_json(), outfile)
 
         rpe.append(total_reward)
-        sio.savemat('Rewards_per_episode20', {'R': rpe})
+        sio.savemat('P2_20cm/Rewards_per_episode20', {'R': rpe})
         print(Pb, Pr)
         print(Pb_t, Pr_t)
         print(s_t1)
