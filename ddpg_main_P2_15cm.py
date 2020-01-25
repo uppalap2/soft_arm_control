@@ -124,9 +124,9 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
     state_dim = 5  # of sensors input
 
     #    np.random.seed(1337)
-
+    suffix="_3"
     EXPLORE = 100000  # exploration step count
-    episode_count = 100000
+    episode_count = 30000
     rewards = 0
     done = False
     step = 0
@@ -229,16 +229,16 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
         reached_deq.append(reached)
         if np.mod(i, 3) == 0:
             if (train_indicator):
-                actor.model.save_weights("actormodel15.h5", overwrite=True)
-                with open("actormodel15.json", "w") as outfile:
+                actor.model.save_weights("P2_15cm/actormodel15"+suffix+".h5", overwrite=True)
+                with open("P2_15cm/actormodel15"+suffix+".json", "w") as outfile:
                     json.dump(actor.model.to_json(), outfile)
 
-                critic.model.save_weights("criticmodel15.h5", overwrite=True)
-                with open("criticmodel15.json", "w") as outfile:
+                critic.model.save_weights("P2_15cm/criticmodel15"+suffix+".h5", overwrite=True)
+                with open("P2_15cm/criticmodel15"+suffix+".json", "w") as outfile:
                     json.dump(critic.model.to_json(), outfile)
 
         rpe.append(total_reward)
-        sio.savemat('Rewards_per_episode15', {'R': rpe})
+        sio.savemat('P2_15cm/Rewards_per_episode15'+suffix, {'R': rpe})
         print(Pb, Pr)
         print(Pb_t, Pr_t)
         print(s_t1)

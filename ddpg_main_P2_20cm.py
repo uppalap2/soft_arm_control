@@ -126,13 +126,13 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
     #    np.random.seed(1337)
 
     EXPLORE = 100000  # exploration step count
-    episode_count = 100000
+    episode_count = 30000
     rewards = 0
     done = False
     step = 0
     epsilon = 0.9 # Annealed to 0.1# was 0.9
     train_indicator = 1
-
+    suffix = "_2"
     contents = sio.loadmat('P2_data_20cm.mat')
     data = contents['P2_data_20cm']
     data = tuple(map(tuple, data))
@@ -229,16 +229,16 @@ def playGame(train_indicator=0):  # 1 means Train, 0 means simply Run
         reached_deq.append(reached)
         if np.mod(i, 3) == 0:
             if (train_indicator):
-                actor.model.save_weights("P2_20cm/actormodel20.h5", overwrite=True)
-                with open("P2_20cm/actormodel20.json", "w") as outfile:
+                actor.model.save_weights("P2_20cm/actormodel20"+suffix+".h5", overwrite=True)
+                with open("P2_20cm/actormodel20"+suffix+".json", "w") as outfile:
                     json.dump(actor.model.to_json(), outfile)
 
-                critic.model.save_weights("P2_20cm/criticmodel20.h5", overwrite=True)
-                with open("P2_20cm/criticmodel20.json", "w") as outfile:
+                critic.model.save_weights("P2_20cm/criticmodel20"+suffix+".h5", overwrite=True)
+                with open("P2_20cm/criticmodel20"+suffix+".json", "w") as outfile:
                     json.dump(critic.model.to_json(), outfile)
 
         rpe.append(total_reward)
-        sio.savemat('P2_20cm/Rewards_per_episode20', {'R': rpe})
+        sio.savemat('P2_20cm/Rewards_per_episode20'+suffix, {'R': rpe})
         print(Pb, Pr)
         print(Pb_t, Pr_t)
         print(s_t1)
